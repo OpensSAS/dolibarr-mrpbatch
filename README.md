@@ -19,6 +19,10 @@ Accès : menu GPAO → **Atelier**, menu du haut **Atelier** (tablette), raccour
 
 Prérequis : Dolibarr ≥ 17, modules GPAO, Stocks, Lots/Séries. Facultatifs : Postes de travail (sélecteur de poste), Commandes fournisseurs, Commandes clients, Expéditions, Webhook, API REST.
 
+## Scan par l'appareil photo
+
+Bouton 📷 dans la barre de scan (et à côté du n° de lot dans les saisies). **Dolibarr doit être ouvert en HTTPS** : les navigateurs n'autorisent pas la caméra sur une page `http://`. L'autorisation est demandée une fois par appareil. Le décodeur ZXing (`js/vendor/`, licences dans `js/vendor/LICENSES.txt`) n'est chargé que si le navigateur n'a pas de lecteur intégré ; si le serveur web ne connaît pas le type `.wasm`, ajouter `AddType application/wasm .wasm` (Apache) — la lecture fonctionne quand même, un peu plus lentement au premier chargement.
+
 ## Postes de travail
 
 Un OF est rattaché à un poste s'il contient une opération (ligne de gamme) portant ce poste **ou** si son champ « Poste de travail (atelier) » est renseigné.
@@ -38,6 +42,10 @@ Préfixe : **`/api/index.php/mrpbatchapi/`** (règle Dolibarr pour une classe `M
 `GET mos`, `GET mos/{id}/consumelines`, `POST mos/{id}/consumebatch`, `GET mos/{id}/producelines`, `POST mos/{id}/producebatch`, `POST mos/{id}/close`, `GET workstations`, `GET planning?from=AAAA-MM-JJ&to=AAAA-MM-JJ&ws=`, `POST receptions`, `GET orders`, `POST orders/{id}/step`, `POST orders/{id}/pick`, `GET events`.
 
 ## Changelog
+
+### 2.1.0
+- Scan par l'appareil photo (téléphone, tablette, PC avec webcam) : bouton 📷 dans la barre de scan et à côté du n° de lot. Lecture EAN-13/8, UPC, Code 128 / GS1-128, Code 39, ITF, DataMatrix / GS1 DataMatrix, QR. Mode « une lecture » ou « en continu », lampe torche si disponible, vibration. Lecteur natif du navigateur quand il existe (Chrome Android), sinon ZXing (WebAssembly) embarqué dans le module, chargé au premier usage — aucun service externe.
+- Correctif : un code GS1 contenant le séparateur GS était refusé par Dolibarr (erreur 403, « Session expirée ou erreur serveur »).
 
 ### 2.0.4
 - Saisie des quantités : vrai champ (clavier numérique du téléphone/tablette, clavier physique sur PC) avec boutons −1 / +1 / Reste ; Entrée valide. Le pavé numérique à l'écran n'est plus affiché d'office : il reste disponible sur tablette via le bouton « Pavé numérique » (choix mémorisé).

@@ -63,6 +63,8 @@ function mrpbatch_app_config($db, $user, $mode, $screen)
 	return array(
 		'mode'         => $mode,
 		'ajax'         => dol_buildpath('/mrpbatch/ajax/app.php', 1),
+		'vendor'       => dol_buildpath('/mrpbatch/js/vendor/', 1),
+		'assetVersion' => mrpbatch_asset_version(),
 		'token'        => newToken(),
 		'dolibarr'     => DOL_URL_ROOT.'/',
 		'tabletUrl'    => dol_buildpath('/mrpbatch/tablet.php', 1).($screen ? '#/'.$screen : ''),

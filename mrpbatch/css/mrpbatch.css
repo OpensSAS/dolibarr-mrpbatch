@@ -96,6 +96,29 @@ body.mbx.lock { overflow: hidden; }
 .mbx .scanhint { color: var(--muted); font-size: .82em; margin-top: .3em; }
 .mbx:not(.w-m) .scanhint { display: none; }
 .mbx:not(.w-m) .scanbox input { font-size: 1.1em; padding: .55em 0; }
+.mbx .cambtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2.9em; height: 2.9em; margin-right: -.45em; border-radius: .7em; background: var(--key); color: var(--accent); border: 0; }
+.mbx .cambtn[hidden] { display: none; }
+.mbx .cambtn:active { background: var(--key-press); }
+.mbx .scanbox .cambtn svg { width: 1.55em; height: 1.55em; }
+.mbx-desk .cambtn { width: 2.5em; height: 2.5em; }
+
+/* Caméra plein écran */
+.mbx .cam { position: fixed; inset: 0; z-index: 10050; background: #000; color: #fff; display: flex; flex-direction: column; }
+.mbx .cam[hidden] { display: none; }
+.mbx .cam video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mbx .camframe { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.mbx .camframe i { width: min(78vw, 26em); height: min(48vw, 16em); border-radius: 1em; box-shadow: 0 0 0 100vmax rgba(0,0,0,.45); border: 3px solid rgba(255,255,255,.9); }
+.mbx .camtop, .mbx .cambot { position: relative; display: flex; align-items: center; gap: .6em; padding: .8em; }
+.mbx .camtop { padding-top: calc(.8em + env(safe-area-inset-top)); justify-content: space-between; }
+.mbx .cambot { margin-top: auto; flex-direction: column; align-items: stretch; padding-bottom: calc(1em + env(safe-area-inset-bottom)); }
+.mbx .camst { font-weight: 800; font-size: 1.1em; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.mbx .camlast { text-align: center; font-weight: 700; min-height: 1.4em; text-shadow: 0 1px 3px rgba(0,0,0,.8); overflow-wrap: anywhere; }
+.mbx .camacts { display: flex; gap: .6em; justify-content: center; }
+.mbx .camb { min-width: 3.4em; min-height: 3.4em; padding: 0 1em; border-radius: 1.7em; border: 0; background: rgba(0,0,0,.6); color: #fff; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: .45em; }
+.mbx .camb[hidden] { display: none; }
+.mbx .camb svg { width: 1.5em; height: 1.5em; }
+.mbx .camb.on { background: #fff; color: #000; }
+.mbx .camb:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 
 /* ===================== Contenu ===================== */
 .mbx .main { padding: .8em; max-width: 1700px; margin: 0 auto; }
@@ -280,6 +303,8 @@ body.mbx.lock { overflow: hidden; }
 .mbx .lotval input { width: 100%; border: 0; outline: 0; background: none; font-weight: 900; font-size: 1em; -webkit-user-select: text; user-select: text; box-shadow: none; padding: 0; }
 .mbx .sbtn { min-height: 3.4em; padding: 0 .95em; border-radius: .85em; background: var(--key); font-weight: 800; flex: 1 0 auto; }
 .mbx .sbtn:active { background: var(--key-press); }
+.mbx .sbtn.ico { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 3.4em; color: var(--accent); }
+.mbx .sbtn.ico svg { width: 1.6em; height: 1.6em; }
 .mbx .sbtn.on { background: var(--f-ok); color: #fff; }
 .mbx .sbtn.off { background: var(--f-err); color: #fff; }
 .mbx .dates { display: grid; gap: .55em; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5em), 1fr)); margin-bottom: .8em; }

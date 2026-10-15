@@ -36,7 +36,10 @@
 		ws: svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
 		ext: svg('<path d="M14 3h7v7M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>'),
 		cal: svg('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'),
-		tablet: svg('<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/>')
+		tablet: svg('<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M11 18h2"/>'),
+		cam: svg('<path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.8"/>', 2),
+		torch: svg('<path d="M8 2h8v5l-2 3v12h-4V10L8 7V2z"/><path d="M8 5h8M12 14v2"/>', 2),
+		loop: svg('<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>', 2)
 	};
 
 	/* ================================================================
@@ -112,6 +115,8 @@
 
 	function api(params, post) {
 		params.token = CFG.token;
+		// Séparateur GS1 (GS) : refusé par le filtre anti-injection de Dolibarr, transmis sous la forme « ␝ »
+		if (params.code) { params.code = String(params.code).replace(/\x1D/g, "\u241D"); }
 		var body = new URLSearchParams(params);
 		var url = CFG.ajax + (post ? "" : "?" + body.toString());
 		return fetch(url, {
@@ -184,6 +189,7 @@
 		var wsBtn = '<button class="' + (DESK ? "tbtn" : "ibtn") + '" id="mbxWs" title="Poste de travail" style="display:none">' + ICON.ws + '<span class="lbl" id="mbxWsLbl"></span></button>';
 		var scan = '<div class="scanbar" id="mbxScanbar" role="search" aria-label="Scan"><form class="scanbox" id="mbxScanForm" autocomplete="off">' + ICON.scan +
 			'<input id="mbxScan" aria-label="Code scanné" aria-describedby="mbxHint" type="text" inputmode="' + (DESK ? "text" : "none") + '" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Scanner…">' +
+			'<button type="button" class="cambtn" id="mbxCamBtn" title="Scanner avec l\'appareil photo" aria-label="Scanner avec l\'appareil photo" hidden>' + ICON.cam + '</button>' +
 			'</form><div class="scanhint" id="mbxHint"></div></div>';
 		var h;
 		if (DESK) {
@@ -205,7 +211,15 @@
 		h += '<main class="main" id="mbxView"></main>' +
 			'<div class="flash" id="mbxFlash" aria-hidden="true"></div><div class="toast" id="mbxToast" role="status" aria-live="polite" aria-atomic="true"></div>' +
 			'<div class="modal" id="mbxModal"><div class="mbox" id="mbxModalBox" role="dialog" aria-modal="true"></div></div>' +
-			'<div class="spin" id="mbxSpin" role="progressbar" aria-label="Chargement"><i></i></div>';
+			'<div class="spin" id="mbxSpin" role="progressbar" aria-label="Chargement"><i></i></div>' +
+			'<div class="cam" id="mbxCam" role="dialog" aria-modal="true" aria-label="Scanner avec l\'appareil photo" hidden>' +
+			'<video id="mbxCamVideo" playsinline muted autoplay></video><div class="camframe" aria-hidden="true"><i></i></div>' +
+			'<div class="camtop"><span class="camst" id="mbxCamSt" role="status" aria-live="polite">Démarrage de la caméra…</span>' +
+			'<button type="button" class="camb" id="mbxCamClose" aria-label="Fermer la caméra">' + ICON.x + '</button></div>' +
+			'<div class="cambot"><div class="camlast" id="mbxCamLast" aria-live="polite"></div><div class="camacts">' +
+			'<button type="button" class="camb" id="mbxCamTorch" aria-pressed="false" hidden>' + ICON.torch + '<span>Lampe</span></button>' +
+			'<button type="button" class="camb" id="mbxCamLoop" aria-pressed="false">' + ICON.loop + '<span>En continu</span></button>' +
+			'</div></div></div>';
 		root.innerHTML = h;
 	}
 	buildShell();
@@ -306,7 +320,7 @@
 		return a && a !== scanInput && (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA");
 	}
 	function focusScan(force) {
-		if ($("mbxScanbar").style.display === "none" || modalOn()) { return; }
+		if ($("mbxScanbar").style.display === "none" || modalOn() || camOn()) { return; }
 		if (!force && otherFieldFocused()) { return; }
 		if (DESK && !force) { return; }
 		scanInput.focus({ preventScroll: true });
@@ -412,6 +426,184 @@
 		}
 		var sc = cur();
 		if (sc && sc.onScan) { sc.onScan(code); }
+	}
+
+	/* ================================================================
+	 * Scan par l'appareil photo
+	 * BarcodeDetector natif (Chrome Android…) sinon ZXing WebAssembly
+	 * embarqué dans le module (js/vendor), chargé au premier usage.
+	 * ================================================================ */
+	var CAM_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "data_matrix", "qr_code"];
+	var cam = { stream: null, detector: null, timer: null, busy: false, last: "", lastAt: 0, paused: false, loop: store("camloop") === "1", torch: false, ret: null, gen: 0 };
+	var CAM_OK = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+	function camAvail() { return CAM_OK && !!window.isSecureContext; }
+	function camOn() { return !$("mbxCam").hidden; }
+	function camStatus(t) { $("mbxCamSt").textContent = t; }
+	function loadScript(src) {
+		return new Promise(function (resolve, reject) {
+			var s = document.createElement("script");
+			s.src = src; s.async = true;
+			s.onload = resolve;
+			s.onerror = function () { reject(new Error("Chargement impossible : " + src)); };
+			document.head.appendChild(s);
+		});
+	}
+	function getDetector() {
+		if (cam.detector) { return Promise.resolve(cam.detector); }
+		var nativeP = (window.BarcodeDetector && window.BarcodeDetector.getSupportedFormats) ?
+			window.BarcodeDetector.getSupportedFormats().catch(function () { return []; }) : Promise.resolve([]);
+		return nativeP.then(function (sup) {
+			// Natif seulement s'il lit les codes GS1 de l'atelier (DataMatrix + Code 128 + EAN-13)
+			if (["data_matrix", "code_128", "ean_13"].every(function (f) { return sup.indexOf(f) >= 0; })) {
+				return new window.BarcodeDetector({ formats: CAM_FORMATS.filter(function (f) { return sup.indexOf(f) >= 0; }) });
+			}
+			var v = "?v=" + encodeURIComponent(CFG.assetVersion || "");
+			var ready = window.BarcodeDetectionAPI ? Promise.resolve() : loadScript(CFG.vendor + "barcode-detector.js" + v);
+			return ready.then(function () {
+				var api = window.BarcodeDetectionAPI;
+				api.setZXingModuleOverrides({
+					locateFile: function (path, prefix) { return /\.wasm$/.test(path) ? CFG.vendor + "zxing_reader.wasm" + v : prefix + path; }
+				});
+				return api.prepareZXingModule({ fireImmediately: true }).then(function () { return new api.BarcodeDetector({ formats: CAM_FORMATS }); });
+			});
+		}).then(function (d) { cam.detector = d; return d; });
+	}
+	function camError(err) {
+		var n = err && err.name;
+		if (n === "NotAllowedError" || n === "SecurityError") { return "Accès à la caméra refusé. Autorisez la caméra pour ce site dans les réglages du navigateur, puis réessayez."; }
+		if (n === "NotFoundError" || n === "OverconstrainedError") { return "Aucune caméra disponible sur cet appareil."; }
+		if (n === "NotReadableError") { return "La caméra est utilisée par une autre application."; }
+		return "Caméra indisponible : " + ((err && err.message) || err);
+	}
+	function camLoopBtn() {
+		var b = $("mbxCamLoop");
+		b.setAttribute("aria-pressed", cam.loop ? "true" : "false");
+		b.classList.toggle("on", cam.loop);
+	}
+	function openCam(opts) {
+		opts = opts || {};
+		if (!window.isSecureContext) {
+			koFeedback("La caméra n'est utilisable que si Dolibarr est ouvert en HTTPS.");
+			return;
+		}
+		if (!CAM_OK) { koFeedback("Ce navigateur ne donne pas accès à la caméra."); return; }
+		if (camOn()) { return; }
+		var gen = ++cam.gen;
+		cam.single = !!opts.single;
+		cam.ret = document.activeElement;
+		cam.last = ""; cam.lastAt = 0; cam.paused = false; cam.torch = false;
+		$("mbxCamLast").textContent = opts.hint || "";
+		$("mbxCamLoop").hidden = cam.single;
+		$("mbxCamTorch").hidden = true;
+		$("mbxCamTorch").setAttribute("aria-pressed", "false");
+		$("mbxCamTorch").classList.remove("on");
+		camLoopBtn();
+		camStatus("Démarrage de la caméra…");
+		$("mbxCam").hidden = false;
+		root.classList.add("cam-on");
+		setTimeout(function () { $("mbxCamClose").focus({ preventScroll: true }); }, 30);
+		Promise.all([
+			navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } } }),
+			getDetector()
+		]).then(function (res) {
+			if (gen !== cam.gen || !camOn()) { res[0].getTracks().forEach(function (t) { t.stop(); }); return; }
+			cam.stream = res[0];
+			var video = $("mbxCamVideo");
+			video.srcObject = cam.stream;
+			var track = cam.stream.getVideoTracks()[0];
+			var caps = track && track.getCapabilities ? track.getCapabilities() : {};
+			if (caps.focusMode && caps.focusMode.indexOf("continuous") >= 0) { track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(function () {}); }
+			if (caps.torch) { $("mbxCamTorch").hidden = false; }
+			return video.play().catch(function () {}).then(function () {
+				camStatus(cam.single || !cam.loop ? "Visez le code-barres" : "Visez les codes-barres l'un après l'autre");
+				camTick(gen);
+			});
+		}).catch(function (err) {
+			if (gen !== cam.gen) { return; }
+			closeCam();
+			koFeedback(camError(err));
+		});
+	}
+	function camTick(gen) {
+		if (gen !== cam.gen || !camOn()) { return; }
+		var video = $("mbxCamVideo");
+		if (cam.paused || cam.busy || video.readyState < 2) { cam.timer = setTimeout(function () { camTick(gen); }, 120); return; }
+		cam.busy = true;
+		cam.detector.detect(video).then(function (codes) {
+			cam.busy = false;
+			if (gen !== cam.gen || !camOn()) { return; }
+			var c = (codes || []).filter(function (x) { return x && x.rawValue; })[0];
+			if (c) { camRead(String(c.rawValue), gen); }
+		}).catch(function () { cam.busy = false; }).then(function () {
+			if (gen === cam.gen && camOn()) { cam.timer = setTimeout(function () { camTick(gen); }, 90); }
+		});
+	}
+	function camRead(code, gen) {
+		var now = Date.now();
+		// Le même code reste dans le champ de la caméra : on ne le relit pas tout de suite
+		if (code === cam.last && now - cam.lastAt < 2500) { cam.lastAt = now; return; }
+		cam.last = code; cam.lastAt = now;
+		if (navigator.vibrate) { try { navigator.vibrate(60); } catch (e) { /* ignoré */ } }
+		$("mbxCamLast").textContent = "Lu : " + code.replace(/[\x00-\x1F]/g, " ");
+		if (cam.single || !cam.loop) {
+			closeCam(true);
+			handleScan(code);
+			return;
+		}
+		// En continu : on attend la réponse du serveur ; si elle ouvre une saisie, la caméra s'efface
+		cam.paused = true;
+		var hadPanel = S.panel;
+		handleScan(code);
+		var waited = 0;
+		(function wait() {
+			if (gen !== cam.gen || !camOn()) { return; }
+			if ($("mbxSpin").classList.contains("on") && waited < 10000) { waited += 100; setTimeout(wait, 100); return; }
+			if (modalOn() || (S.panel && S.panel !== hadPanel)) { closeCam(true); return; }
+			setTimeout(function () { cam.paused = false; }, 600);
+		})();
+	}
+	function closeCam(keepFocus) {
+		cam.gen++;
+		clearTimeout(cam.timer);
+		if (cam.stream) { cam.stream.getTracks().forEach(function (t) { t.stop(); }); cam.stream = null; }
+		var video = $("mbxCamVideo");
+		video.srcObject = null;
+		$("mbxCam").hidden = true;
+		root.classList.remove("cam-on");
+		cam.busy = false;
+		if (!keepFocus) {
+			var r = cam.ret;
+			setTimeout(function () { if (r && document.body.contains(r) && r !== scanInput && r.offsetParent !== null) { r.focus({ preventScroll: true }); } else { focusScan(true); } }, 30);
+		}
+	}
+	$("mbxCamClose").onclick = function () { closeCam(); };
+	$("mbxCamLoop").onclick = function () { cam.loop = !cam.loop; store("camloop", cam.loop ? "1" : "0"); camLoopBtn(); camStatus(cam.loop ? "Visez les codes-barres l'un après l'autre" : "Visez le code-barres"); };
+	$("mbxCamTorch").onclick = function () {
+		var track = cam.stream && cam.stream.getVideoTracks()[0];
+		if (!track) { return; }
+		var on = !cam.torch;
+		track.applyConstraints({ advanced: [{ torch: on }] }).then(function () {
+			cam.torch = on;
+			$("mbxCamTorch").setAttribute("aria-pressed", on ? "true" : "false");
+			$("mbxCamTorch").classList.toggle("on", on);
+		}).catch(function () { $("mbxCamTorch").hidden = true; });
+	};
+	document.addEventListener("keydown", function (e) {
+		if (!camOn()) { return; }
+		if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeCam(); return; }
+		if (e.key === "Tab") {
+			var f = Array.prototype.filter.call($("mbxCam").querySelectorAll("button"), function (x) { return !x.hidden; });
+			if (!f.length) { return; }
+			var i = f.indexOf(document.activeElement);
+			if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+			else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+		}
+	}, true);
+	document.addEventListener("visibilitychange", function () { if (document.hidden && camOn()) { closeCam(true); } });
+	window.addEventListener("pagehide", function () { if (camOn()) { closeCam(true); } });
+	if (CAM_OK || !window.isSecureContext) {
+		$("mbxCamBtn").hidden = false;
+		$("mbxCamBtn").onclick = function () { openCam(); };
 	}
 
 	/* ================================================================
@@ -596,10 +788,11 @@
 					h += '<div class="lotval"><input id="pLotInput" type="text" inputmode="text" autocomplete="off" value="' + esc(p.batch) + '"></div>' +
 						'<button class="sbtn" id="pLotDone">OK</button>';
 				} else if (p.armLot) {
-					h += '<div class="lotval arm">Scannez l\'étiquette du lot…</div><button class="sbtn" id="pLotEdit">Saisir</button>' + (p.batch ? '<button class="sbtn" id="pLotCancel">Annuler</button>' : '');
+					h += '<div class="lotval arm">Scannez l\'étiquette du lot…</div>' + (camAvail() ? '<button class="sbtn ico" id="pLotCam" title="Lire l\x27étiquette avec l\x27appareil photo" aria-label="Lire l\'étiquette avec l\'appareil photo">' + ICON.cam + '</button>' : '') + '<button class="sbtn" id="pLotEdit">Saisir</button>' + (p.batch ? '<button class="sbtn" id="pLotCancel">Annuler</button>' : '');
 				} else {
 					h += '<div class="lotval">' + (p.batch ? esc(p.batch) : '<span class="muted">—</span>') + '</div>' +
-						'<button class="sbtn" id="pLotEdit">Modifier</button><button class="sbtn" id="pLotScan">Scanner</button>';
+						'<button class="sbtn" id="pLotEdit">Modifier</button><button class="sbtn" id="pLotScan">Scanner</button>' +
+						(camAvail() ? '<button class="sbtn ico" id="pLotCam" title="Lire l\x27étiquette avec l\x27appareil photo" aria-label="Lire l\'étiquette avec l\'appareil photo">' + ICON.cam + '</button>' : '');
 				}
 				h += '</div>';
 				if (r.lot_known) { h += '<div class="alert a-info">Lot déjà connu : ses dates sont reprises.</div>'; }
@@ -678,6 +871,7 @@
 		if ($("pNote")) { $("pNote").oninput = function () { p.note = this.value; }; }
 		if ($("pLotEdit")) { $("pLotEdit").onclick = function () { p.editLot = true; p.armLot = false; renderPanel(); var i = $("pLotInput"); i.focus(); i.select(); }; }
 		if ($("pLotScan")) { $("pLotScan").onclick = function () { p.armLot = true; renderPanel(); focusScan(true); }; }
+		if ($("pLotCam")) { $("pLotCam").onclick = function () { p.armLot = true; p.editLot = false; renderPanel(); openCam({ single: true, hint: "Étiquette du lot" }); }; }
 		if ($("pLotCancel")) { $("pLotCancel").onclick = function () { p.armLot = false; renderPanel(); }; }
 		if ($("pLotDone")) {
 			var commitLot = function () { p.batch = $("pLotInput").value.trim(); p.editLot = false; renderPanel(); focusScan(true); };

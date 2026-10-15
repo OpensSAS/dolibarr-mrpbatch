@@ -83,6 +83,17 @@ function mrpbatch_json($data)
  * @param string $msg Message
  * @return void
  */
+/**
+ * Code scanné. Le navigateur remplace le séparateur GS1 (GS, 0x1D) par « ␝ » (U+241D) :
+ * les caractères de contrôle sont refusés par le filtre anti-injection de Dolibarr (403).
+ *
+ * @return string
+ */
+function mrpbatch_code()
+{
+	return trim(str_replace("\xE2\x90\x9D", "\x1D", GETPOST('code', 'alphanohtml')));
+}
+
 function mrpbatch_err($msg)
 {
 	mrpbatch_json(array('ok' => false, 'error' => $msg));
@@ -335,7 +346,7 @@ switch ($what) {
 		break;
 
 	case 'findmo':
-		$code = trim(GETPOST('code', 'alphanohtml'));
+		$code = mrpbatch_code();
 		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'mrp_mo';
 		$sql .= " WHERE ref = '".$db->escape($code)."'";
 		$sql .= ' AND entity IN ('.getEntity('mo').')';
@@ -359,7 +370,7 @@ switch ($what) {
 			mrpbatch_err('Accès refusé');
 		}
 		$mo = mrpbatch_loadmo($id);
-		$code = trim(GETPOST('code', 'alphanohtml'));
+		$code = mrpbatch_code();
 		$resolved = $service->resolveScannedCode($code, $mo);
 		if (!$resolved) {
 			mrpbatch_err('Code « '.$code.' » inconnu');
@@ -510,7 +521,7 @@ switch ($what) {
 			mrpbatch_err('Accès refusé');
 		}
 		$rc = new MrpbatchReception($db);
-		$code = trim(GETPOST('code', 'alphanohtml'));
+		$code = mrpbatch_code();
 		$order = null;
 		if ($id > 0) {
 			$order = mrpbatch_try(function () use ($rc, $id) {
@@ -653,11 +664,11 @@ switch ($what) {
 			mrpbatch_err('Accès refusé');
 		}
 		$od = new MrpbatchOrders($db);
-		$oid = $od->findOrder(GETPOST('code', 'alphanohtml'));
+		$oid = $od->findOrder(mrpbatch_code());
 		if ($oid) {
 			mrpbatch_json(array('ok' => true, 'id' => $oid));
 		}
-		mrpbatch_err('Aucune commande client « '.GETPOST('code', 'alphanohtml').' »');
+		mrpbatch_err('Aucune commande client « '.mrpbatch_code().' »');
 		break;
 
 	case 'od_scan':
@@ -679,7 +690,7 @@ switch ($what) {
 				}
 			}
 		} else {
-			$code = trim(GETPOST('code', 'alphanohtml'));
+			$code = mrpbatch_code();
 			$oid = $od->findOrder($code);
 			if ($oid) {
 				mrpbatch_json(array('ok' => true, 'goto' => 'order', 'id' => $oid));
