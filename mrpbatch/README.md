@@ -39,6 +39,9 @@ Préfixe : **`/api/index.php/mrpbatchapi/`** (règle Dolibarr pour une classe `M
 
 ## Changelog
 
+### 2.0.4
+- Saisie des quantités : vrai champ (clavier numérique du téléphone/tablette, clavier physique sur PC) avec boutons −1 / +1 / Reste ; Entrée valide. Le pavé numérique à l'écran n'est plus affiché d'office : il reste disponible sur tablette via le bouton « Pavé numérique » (choix mémorisé).
+
 ### 2.0.3
 - Téléphone et petites tablettes : synthèse de l'OF sur une seule carte (statut + 2 jauges) au lieu de 4 tuiles empilées, les lignes à traiter remontent.
 - « Terminer l'OF » déplacé sous les lignes, en action secondaire tant que la production n'est pas complète.

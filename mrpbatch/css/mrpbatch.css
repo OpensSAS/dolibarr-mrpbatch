@@ -293,7 +293,22 @@ body.mbx.lock { overflow: hidden; }
 .mbx .quick button:active { background: var(--key-press); }
 .mbx .note { width: 100%; min-height: 3.2em; border: 3px solid var(--line); border-radius: .85em; padding: .5em .75em; background: var(--card); -webkit-user-select: text; user-select: text; resize: vertical; }
 
-/* Pavé numérique */
+/* Saisie de quantité */
+.mbx .qtyrow { display: grid; grid-template-columns: 3.6em minmax(0, 1fr) 3.6em; gap: .45em; }
+.mbx .qbtn { min-height: 3.6em; border-radius: .85em; background: var(--key); font-size: 1.6em; font-weight: 800; text-align: center; line-height: 1; }
+.mbx-desk .qbtn { min-height: 2.6em; font-size: 1.3em; }
+.mbx .qbtn:active { background: var(--key-press); }
+.mbx .qtyin { width: 100%; min-width: 0; border: 3px solid var(--accent); border-radius: .85em; background: var(--card); color: var(--ink); font-size: 2em; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; padding: .15em .4em; -webkit-user-select: text; user-select: text; box-shadow: none; }
+.mbx-desk .qtyin { font-size: 1.6em; }
+.mbx .produce .qtyin { border-color: var(--prod); }
+.mbx .receive .qtyin { border-color: var(--rc); }
+.mbx .pick .qtyin { border-color: var(--od); }
+.mbx .qtyquick { display: flex; flex-wrap: wrap; gap: .4em; margin-top: .5em; }
+.mbx .qtyquick button { min-height: 2.6em; padding: 0 .8em; border-radius: .7em; background: var(--key); font-weight: 800; }
+.mbx .qtyquick button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); }
+.mbx .pad { margin-top: .55em; }
+
+/* Pavé numérique (optionnel) */
 .mbx .qtybox { display: grid; gap: .55em; grid-template-columns: minmax(0, 1fr); }
 .mbx .qtydisp { display: flex; align-items: baseline; justify-content: space-between; gap: .5em; border: 3px solid var(--accent); border-radius: .85em; padding: .3em .95em; background: var(--card); }
 .mbx .produce .qtydisp { border-color: var(--prod); }

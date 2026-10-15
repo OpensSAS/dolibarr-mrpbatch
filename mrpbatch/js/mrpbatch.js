@@ -255,7 +255,7 @@
 	 * Poste de travail
 	 * ================================================================ */
 	var WS = CFG.workstations || [];
-	var S = { ws: parseInt(store("ws") || "0", 10) || 0, kbd: false, panel: null, route: null, timer: null };
+	var S = { pad: store("pad") === "1", ws: parseInt(store("ws") || "0", 10) || 0, kbd: false, panel: null, route: null, timer: null };
 	if (S.ws > 0 && !WS.some(function (w) { return w.id === S.ws; })) { S.ws = 0; }
 	function wsName(id) {
 		if (id === -1) { return "Sans poste"; }
@@ -639,15 +639,21 @@
 
 		h += '</div>';
 		if (!blocked) {
-			h += '<div class="pqty"><div class="lbl2">Quantité' + (p.mode === "pick" ? ' préparée' : '') + '</div><div class="qtybox">' +
-				'<div class="qtydisp"><span class="v" id="pQty" aria-live="polite" aria-label="Quantité">' + esc(p.qty || "0") + '</span><span class="l">' + (l.status_batch === 2 ? 'unité' : '') + '</span></div>' +
+			// Quantité : un vrai champ (clavier physique ou virtuel) + boutons rapides ; pavé à l'écran en option (atelier, gants)
+			var restLbl = (p.mode === "receive" && !l.qty_planned) ? "1" : "Reste " + fmt(Math.max(0, l.qty_remaining));
+			h += '<div class="pqty"><label class="lbl2" for="pQty">Quantité' + (p.mode === "pick" ? ' préparée' : '') + (l.status_batch === 2 ? ' (1 par n° de série)' : '') + '</label>' +
+				'<div class="qtyrow"><button type="button" class="qbtn" data-k="dec" aria-label="Moins 1">−</button>' +
+				'<input id="pQty" class="qtyin" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" value="' + esc(p.qty || "") + '">' +
+				'<button type="button" class="qbtn" data-k="inc" aria-label="Plus 1">+</button></div>' +
+				'<div class="qtyquick"><button type="button" data-k="rest">' + esc(restLbl) + '</button>' +
+				(DESK ? '' : '<button type="button" data-k="pad" aria-pressed="' + (S.pad ? 'true' : 'false') + '">' + (S.pad ? 'Masquer le pavé' : 'Pavé numérique') + '</button>') + '</div>' +
 				'<div class="qtywarn" id="pWarn"></div>' +
-				'<div class="pad" id="pad">' +
-				'<button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="del" class="s" aria-label="Effacer le dernier chiffre">⌫</button>' +
-				'<button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="clr" class="s">Effacer</button>' +
-				'<button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="rest" class="s">' + (p.mode === "receive" && !l.qty_planned ? "1" : "Reste") + '</button>' +
-				'<button data-k="dec" class="s" aria-label="Moins 1">−1</button><button data-k="0">0</button><button data-k=",">,</button><button data-k="inc" class="s" aria-label="Plus 1">+1</button>' +
-				'</div></div></div>';
+				(S.pad && !DESK ? '<div class="pad" id="pad">' +
+					'<button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="del" class="s" aria-label="Effacer le dernier chiffre">⌫</button>' +
+					'<button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="clr" class="s">Effacer</button>' +
+					'<button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="," class="s">,</button>' +
+					'<button data-k="0" style="grid-column: span 4">0</button></div>' : '') +
+				'</div>';
 		}
 		h += '</div><div class="pf"><button class="btn cancel" id="pCancel">Annuler</button>';
 		if (p.mode === "pick" && l.qty_done > 0) { h += '<button class="btn cancel" id="pReset">Remise à 0</button>'; }
@@ -688,7 +694,22 @@
 		});
 		if ($("pEat")) { $("pEat").onchange = function () { p.eatby = this.value; renderPanel(); }; }
 		if ($("pSell")) { $("pSell").onchange = function () { p.sellby = this.value; renderPanel(); }; }
-		if ($("pad")) { $("pad").querySelectorAll("button").forEach(function (b) { b.onclick = function () { key(b.getAttribute("data-k")); }; }); }
+		side.querySelectorAll(".pqty [data-k]").forEach(function (b) { b.onclick = function () { key(b.getAttribute("data-k")); }; });
+		var qi = $("pQty");
+		if (qi) {
+			qi.addEventListener("focus", function () { qi.select(); });
+			qi.addEventListener("input", function () {
+				var v = qi.value.replace(/[^0-9.,]/g, "").replace(".", ",");
+				if (v !== qi.value) { qi.value = v; }
+				p.qty = v; p.fresh = false; check();
+			});
+			qi.addEventListener("keydown", function (e) {
+				if (e.key === "Enter" && burst.buf.length < 4) { e.preventDefault(); if ($("pOk") && !$("pOk").disabled) { submitPanel(); } }
+				if (e.key === "Escape") { e.preventDefault(); closePanel(); }
+			});
+			// Sur ordinateur, le curseur est directement dans le champ ; sur tablette, pas de clavier virtuel imposé
+			if (DESK) { setTimeout(function () { if (S.panel === p && !p.editLot) { qi.focus({ preventScroll: true }); } }, 30); }
+		}
 		if ($("pReset")) {
 			$("pReset").onclick = function () {
 				confirmBox("Remettre la ligne à zéro ?", "La quantité préparée (" + fmt(p.line.qty_done) + ") sera effacée.", "Remettre à zéro", function () {
@@ -703,6 +724,7 @@
 	function key(k) {
 		var p = S.panel;
 		if (!p) { return; }
+		if (k === "pad") { S.pad = !S.pad; store("pad", S.pad ? "1" : "0"); renderPanel(); return; }
 		var v = p.fresh ? "" : String(p.qty || "");
 		var n;
 		if (/^[0-9]$/.test(k)) { v = (v === "0" ? "" : v) + k; }
@@ -714,7 +736,7 @@
 		if (v.replace(/\D/g, "").length > 7) { return; }
 		p.fresh = false;
 		p.qty = v;
-		$("pQty").textContent = v || "0";
+		if ($("pQty")) { $("pQty").value = v; }
 		check();
 	}
 
