@@ -13,7 +13,7 @@ Accès : menu GPAO → **Atelier**, menu du haut **Atelier** (tablette), raccour
 
 ## Installation / mise à jour
 
-1. Déployer `module_mrpbatch-2.0.1.zip` (Accueil → Configuration → Modules → Déployer un module externe).
+1. Déployer `module_mrpbatch-2.0.2.zip` (Accueil → Configuration → Modules → Déployer un module externe).
 2. **Désactiver puis réactiver** le module (crée les 3 tables, le champ « Poste de travail (atelier) » des OF, les évènements Webhook et les nouveaux menus).
 3. Configuration du module : vérifier la section *Diagnostic*.
 
@@ -38,6 +38,9 @@ Préfixe : **`/api/index.php/mrpbatchapi/`** (règle Dolibarr pour une classe `M
 `GET mos`, `GET mos/{id}/consumelines`, `POST mos/{id}/consumebatch`, `GET mos/{id}/producelines`, `POST mos/{id}/producebatch`, `POST mos/{id}/close`, `GET workstations`, `GET planning?from=AAAA-MM-JJ&to=AAAA-MM-JJ&ws=`, `POST receptions`, `GET orders`, `POST orders/{id}/step`, `POST orders/{id}/pick`, `GET events`.
 
 ## Changelog
+
+### 2.0.2
+- Correctif : « Include of main fails » sur toutes les pages quand le module est installé via un lien symbolique (`htdocs/custom/mrpbatch` → clone git). Les pages cherchent désormais `main.inc.php` à partir du chemin appelé, pas du chemin réel.
 
 ### 2.0.1
 - Accessibilité (audit axe-core WCAG 2.2 AA, 0 violation sur 17 vues en thèmes clair et sombre) : contrastes des aplats et des lignes terminées, cibles du planning ≥ 24 px, repères (navigation, recherche), titres, annonce des messages aux lecteurs d'écran, focus piégé et restitué dans les modales, états « sélectionné » exposés, icônes masquées des aides techniques.

@@ -44,6 +44,18 @@ $res = 0;
 if (!$res && !empty($_SERVER["CONTEXT_DOCUMENT_ROOT"])) {
 	$res = @include $_SERVER["CONTEXT_DOCUMENT_ROOT"]."/main.inc.php";
 }
+// Recherche à partir du chemin appelé (SCRIPT_FILENAME) : fonctionne quand le module est un lien symbolique
+// (ex. htdocs/custom/mrpbatch -> /opt/dolibarr-mrpbatch/mrpbatch), car __DIR__ donne alors le chemin réel.
+$mrpbatchDir = empty($_SERVER['SCRIPT_FILENAME']) ? '' : dirname($_SERVER['SCRIPT_FILENAME']);
+for ($mrpbatchI = 0; !$res && $mrpbatchDir !== '' && $mrpbatchI < 6; $mrpbatchI++) {
+	if (file_exists($mrpbatchDir."/main.inc.php")) {
+		$res = @include $mrpbatchDir."/main.inc.php";
+	}
+	$mrpbatchDir = dirname($mrpbatchDir);
+}
+if (!$res && !empty($_SERVER["DOCUMENT_ROOT"]) && file_exists($_SERVER["DOCUMENT_ROOT"]."/main.inc.php")) {
+	$res = @include $_SERVER["DOCUMENT_ROOT"]."/main.inc.php";
+}
 if (!$res && file_exists("../main.inc.php")) {
 	$res = @include "../main.inc.php";
 }

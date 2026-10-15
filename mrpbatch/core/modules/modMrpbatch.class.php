@@ -33,7 +33,7 @@ class modMrpbatch extends DolibarrModules
 		$this->descriptionlong = "Écrans web et tablette pour l'atelier : consommation et production sur les OF par scan (lots, séries, DLC/DLUO, GS1), réception des matières premières, planning par poste de travail avec flux iCalendar, tableau de bord de préparation et de conditionnement des commandes clients, évènements pour le module Webhook et API REST /api/index.php/mrpbatchapi/...";
 		$this->editor_name = 'Opens';
 		$this->editor_url = 'https://www.opens.fr';
-		$this->version = '2.0.1';
+		$this->version = '2.0.2';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'mrp';
 
