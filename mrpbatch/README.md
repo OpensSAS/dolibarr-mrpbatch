@@ -13,7 +13,7 @@ Accès : menu GPAO → **Atelier**, menu du haut **Atelier** (tablette), raccour
 
 ## Installation / mise à jour
 
-1. Déployer `module_mrpbatch-2.0.2.zip` (Accueil → Configuration → Modules → Déployer un module externe).
+1. Déployer `module_mrpbatch-2.0.3.zip` (Accueil → Configuration → Modules → Déployer un module externe).
 2. **Désactiver puis réactiver** le module (crée les 3 tables, le champ « Poste de travail (atelier) » des OF, les évènements Webhook et les nouveaux menus).
 3. Configuration du module : vérifier la section *Diagnostic*.
 
@@ -38,6 +38,13 @@ Préfixe : **`/api/index.php/mrpbatchapi/`** (règle Dolibarr pour une classe `M
 `GET mos`, `GET mos/{id}/consumelines`, `POST mos/{id}/consumebatch`, `GET mos/{id}/producelines`, `POST mos/{id}/producebatch`, `POST mos/{id}/close`, `GET workstations`, `GET planning?from=AAAA-MM-JJ&to=AAAA-MM-JJ&ws=`, `POST receptions`, `GET orders`, `POST orders/{id}/step`, `POST orders/{id}/pick`, `GET events`.
 
 ## Changelog
+
+### 2.0.3
+- Téléphone et petites tablettes : synthèse de l'OF sur une seule carte (statut + 2 jauges) au lieu de 4 tuiles empilées, les lignes à traiter remontent.
+- « Terminer l'OF » déplacé sous les lignes, en action secondaire tant que la production n'est pas complète.
+- Filtres et recherche sur une seule ligne (la recherche se déplie au toucher), dégradé sur les barres défilantes pour signaler la suite, onglet actif ramené en vue.
+- Recherche de commandes : bascule automatiquement sur l'étape qui contient les résultats ; messages vides explicites.
+- Zone de scan compacte (aide masquée sur petit écran).
 
 ### 2.0.2
 - Correctif : « Include of main fails » sur toutes les pages quand le module est installé via un lien symbolique (`htdocs/custom/mrpbatch` → clone git). Les pages cherchent désormais `main.inc.php` à partir du chemin appelé, pas du chemin réel.

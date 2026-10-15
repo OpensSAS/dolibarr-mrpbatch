@@ -898,12 +898,10 @@
 			setHead(mo.ref, esc(mo.product_ref + (mo.product_label ? " — " + mo.product_label : "") + " × " + fmt(mo.qty)));
 			var toConsume = mo.lines.filter(function (l) { return l.qty_remaining > 0; }).length;
 			var toProduce = mo.produce_lines.filter(function (l) { return l.qty_remaining > 0; }).length;
-			var h = '<div class="tiles">' +
-				'<div class="card tile"><div class="cap">Statut</div><div class="mid"><span class="pill s' + mo.status + '" style="font-size:.85em">' + (MO_STATUS[mo.status] || mo.status) + '</span></div></div>' +
-				'<div class="card tile"><div class="cap">Consommation</div><div class="big">' + mo.pct + ' %</div><div class="bar"><i style="width:' + Math.min(100, mo.pct) + '%"></i></div></div>' +
-				'<div class="card tile"><div class="cap">Production</div><div class="big">' + fmt(mo.produced) + ' <span class="muted" style="font-size:.6em">/ ' + fmt(mo.produce_planned) + '</span></div><div class="bar prod"><i style="width:' + mo.produce_pct + '%"></i></div></div>';
-			if (self.canAct()) { h += '<button class="card tile action" id="pCloseMo">Terminer l\'OF</button>'; }
-			h += '</div>';
+			// Synthèse compacte : statut + deux jauges sur une seule carte (le travail, ce sont les lignes)
+			var h = '<div class="card mosum"><div class="mosum-st"><span class="pill s' + mo.status + '">' + (MO_STATUS[mo.status] || mo.status) + '</span></div>' +
+				'<div class="mosum-m"><span class="cap">Consommation</span><b>' + mo.pct + ' %</b><div class="bar"><i style="width:' + Math.min(100, mo.pct) + '%"></i></div></div>' +
+				'<div class="mosum-m"><span class="cap">Production</span><b>' + fmt(mo.produced) + ' <span class="muted">/ ' + fmt(mo.produce_planned) + '</span></b><div class="bar prod"><i style="width:' + mo.produce_pct + '%"></i></div></div></div>';
 			h += '<div class="infoline">' + (mo.date_start ? '<span>Prévu ' + esc(mo.date_start) + (mo.date_end ? ' → ' + esc(mo.date_end) : '') + '</span>' : '<span>Non planifié</span>') +
 				(mo.thirdparty ? '<span>Client : <b>' + esc(mo.thirdparty) + '</b></span>' : '') + wsChips(mo.workstations) +
 				'<a href="' + esc(mo.url) + '" target="' + (DESK ? "_self" : "_blank") + '">Fiche OF ↗</a></div>';
@@ -925,7 +923,13 @@
 					'<div class="nums"><b>' + (done ? '✓ ' : '') + fmt(Math.max(0, l.qty_remaining)) + '</b><span class="l">' + fmt(doneQty) + ' / ' + fmt(l.qty_planned) + '</span></div>' +
 					(self.canAct() ? '<span class="go">' + ICON.plus + '</span>' : '') + '</button>';
 			});
-			h += '</div></div><aside class="side" id="mbxSide"></aside></div>';
+			h += '</div>';
+			if (self.canAct()) {
+				// Clôture : action secondaire en bas, mise en avant seulement quand la production est complète
+				var ready = mo.produce_pct >= 100;
+				h += '<button class="btn ' + (ready ? 'ok' : 'ghost') + ' closemo" id="pCloseMo">' + (ready ? 'Terminer l\'OF' : 'Terminer l\'OF (production incomplète)…') + '</button>';
+			}
+			h += '</div><aside class="side" id="mbxSide"></aside></div>';
 			var v = $("mbxView");
 			v.innerHTML = h;
 			v.querySelectorAll("#pTabs button").forEach(function (b) { b.onclick = function () { P.tab = b.getAttribute("data-t"); S.panel = null; self.renderMo(); }; });
@@ -1477,6 +1481,10 @@
 			var by = {};
 			OD.steps.forEach(function (s) { by[s.code] = []; });
 			list.forEach(function (o) { (by[o.step] || by[OD.steps[0].code]).push(o); });
+			// Recherche : afficher l'étape qui contient des résultats plutôt qu'une étape vide
+			if (q && by[OD.step] && !by[OD.step].length) {
+				for (var si = 0; si < OD.steps.length; si++) { if (by[OD.steps[si].code].length) { OD.step = OD.steps[si].code; break; } }
+			}
 			if (wide()) {
 				h += '<div class="kanban">' + OD.steps.map(function (s) {
 					return '<section class="kcol" aria-label="' + esc(s.label) + '"><h2><span>' + esc(s.label) + '</span><span class="n">' + by[s.code].length + '</span></h2>' +
@@ -1486,7 +1494,7 @@
 				h += '<div class="seg" id="odSteps" style="margin-bottom:.8em">' + OD.steps.map(function (s) {
 					return '<button data-s="' + s.code + '" class="' + (OD.step === s.code ? "on" : "") + '">' + esc(s.label) + '<span class="n">' + by[s.code].length + '</span></button>';
 				}).join("") + '</div>';
-				h += by[OD.step] && by[OD.step].length ? '<div class="grid">' + by[OD.step].map(self.card).join("") + '</div>' : '<div class="card empty">Aucune commande à cette étape.</div>';
+				h += by[OD.step] && by[OD.step].length ? '<div class="grid">' + by[OD.step].map(self.card).join("") + '</div>' : '<div class="card empty">' + (!OD.orders.length ? (OD.filter === "all" ? 'Aucune commande client validée à préparer.' : 'Aucune commande à livrer sur cette période.') : (q && !list.length ? 'Aucune commande ne correspond à la recherche.' : 'Aucune commande à cette étape.')) + '</div>';
 			}
 			var v = $("mbxView");
 			v.innerHTML = h;
@@ -1619,12 +1627,36 @@
 		}
 	};
 
+	/* Barres défilantes (filtres, étapes) : dégradé sur le bord quand il reste du contenu caché, onglet actif rendu visible */
+	function markOverflow() {
+		$("mbxView").querySelectorAll(".search input").forEach(function (i) { i.parentNode.classList.toggle("has", !!i.value); });
+		$("mbxView").querySelectorAll(".seg, .stepper").forEach(function (el) {
+			var upd = function () {
+				var more = el.scrollWidth - el.clientWidth - el.scrollLeft > 4;
+				el.classList.toggle("ovf-r", more);
+				el.classList.toggle("ovf-l", el.scrollLeft > 4);
+			};
+			if (!el._mbxOvf) {
+				el._mbxOvf = true;
+				el.addEventListener("scroll", upd, { passive: true });
+				var on = el.querySelector(".on, .cur");
+				if (on && on.offsetLeft + on.offsetWidth > el.clientWidth) { el.scrollLeft = on.offsetLeft - 16; }
+			}
+			upd();
+		});
+	}
+	window.addEventListener("resize", function () { markOverflow(); });
+	document.addEventListener("input", function (e) {
+		if (e.target.closest && e.target.closest(".search")) { e.target.closest(".search").classList.toggle("has", !!e.target.value); }
+	});
+
 	/* État « sélectionné » des boutons segmentés exposé aux lecteurs d'écran */
 	if (window.MutationObserver) {
 		var syncing = false;
 		new MutationObserver(function () {
 			if (syncing) { return; }
 			syncing = true;
+			markOverflow();
 			$("mbxView").querySelectorAll(".seg button, .stepper button").forEach(function (b) {
 				var v = b.classList.contains("on") || b.classList.contains("cur") ? "true" : "false";
 				if (b.getAttribute("aria-pressed") !== v) { b.setAttribute("aria-pressed", v); }

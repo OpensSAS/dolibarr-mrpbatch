@@ -13,7 +13,7 @@ Accès : menu GPAO → **Atelier**, menu du haut **Atelier** (tablette), raccour
 
 ## Installation / mise à jour
 
-1. Déployer `module_mrpbatch-2.0.2.zip` (Accueil → Configuration → Modules → Déployer un module externe).
+1. Déployer `module_mrpbatch-2.0.3.zip` (Accueil → Configuration → Modules → Déployer un module externe).
 2. **Désactiver puis réactiver** le module (crée les 3 tables, le champ « Poste de travail (atelier) » des OF, les évènements Webhook et les nouveaux menus).
 3. Configuration du module : vérifier la section *Diagnostic*.
 
@@ -39,6 +39,13 @@ Préfixe : **`/api/index.php/mrpbatchapi/`** (règle Dolibarr pour une classe `M
 
 ## Changelog
 
+### 2.0.3
+- Téléphone et petites tablettes : synthèse de l'OF sur une seule carte (statut + 2 jauges) au lieu de 4 tuiles empilées, les lignes à traiter remontent.
+- « Terminer l'OF » déplacé sous les lignes, en action secondaire tant que la production n'est pas complète.
+- Filtres et recherche sur une seule ligne (la recherche se déplie au toucher), dégradé sur les barres défilantes pour signaler la suite, onglet actif ramené en vue.
+- Recherche de commandes : bascule automatiquement sur l'étape qui contient les résultats ; messages vides explicites.
+- Zone de scan compacte (aide masquée sur petit écran).
+
 ### 2.0.2
 - Correctif : « Include of main fails » sur toutes les pages quand le module est installé via un lien symbolique (`htdocs/custom/mrpbatch` → clone git). Les pages cherchent désormais `main.inc.php` à partir du chemin appelé, pas du chemin réel.
 
@@ -57,6 +64,6 @@ Préfixe : **`/api/index.php/mrpbatchapi/`** (règle Dolibarr pour une classe `M
 
 ## Contenu du dépôt
 
-- `mrpbatch/` : le module. Paquet installable : `zip -rq module_mrpbatch-2.0.2.zip mrpbatch`.
+- `mrpbatch/` : le module. Paquet installable : `zip -rq module_mrpbatch-2.0.3.zip mrpbatch`.
 - `tests/` : maquette Playwright (`mock.js`, `shots.js`), audit d'accessibilité axe-core (`axe.js`), tests d'intégration sur un vrai Dolibarr 22 (`activate.php`, `seed.php`, `ajax_test.py`).
 - `docs/captures/` : captures web (dans Dolibarr) et tablette.
